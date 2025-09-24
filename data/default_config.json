@@ -5,8 +5,8 @@
   "alternative_versions": [],
   "hostinfo": {
     "lflist": 0,
-    "rule": 0,
-    "mode": 5,
+    "rule": 5,
+    "mode": 2,
     "comment": "rule: 0=OCG-ONLY, 1=TCG-ONLY, 2=SC-ONLY, 3=CUSTOM-ONLY, 4=NO-UNIQUE, 5=ALL; mode: 0=SINGLE, 1=MATCH, 2=TAG",
     "duel_rule": 2,
     "no_check_deck": false,
