@@ -1728,7 +1728,7 @@
         }
         if (rule.match(/(^|，|,)(T|TAG)(，|,|$)/)) {
           this.hostinfo.mode = 2;
-          this.hostinfo.start_lp = 16000;
+          this.hostinfo.start_lp = 40;
         }
         if (rule.match(/(^|，|,)(TCGONLY|TO)(，|,|$)/)) {
           this.hostinfo.rule = 1;
