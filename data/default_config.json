@@ -1,27 +1,27 @@
 {
   "file": "./config/config.json",
-  "port": 7911,
-  "version": 4945,
+  "port": 25319,
+  "version": 4097,
   "alternative_versions": [],
   "hostinfo": {
     "lflist": 0,
     "rule": 0,
-    "mode": 0,
+    "mode": 2,
     "comment": "rule: 0=OCG-ONLY, 1=TCG-ONLY, 2=SC-ONLY, 3=CUSTOM-ONLY, 4=NO-UNIQUE, 5=ALL; mode: 0=SINGLE, 1=MATCH, 2=TAG",
-    "duel_rule": 5,
+    "duel_rule": 2,
     "no_check_deck": false,
     "no_shuffle_deck": false,
-    "start_lp": 8000,
-    "start_hand": 5,
+    "start_lp": 40,
+    "start_hand": 3,
     "draw_count": 1,
-    "time_limit": 180,
+    "time_limit": 120,
     "no_watch": false,
     "auto_death": false
   },
   "modules": {
-    "welcome": "MyCard YGOPro Server",
-    "update": "请更新你的客户端版本",
-    "wait_update": "你的客户端版本高于服务器版本，请等待服务器更新",
+    "welcome": "Galaxy Card Game",
+    "update": "请更新你的游戏版本",
+    "wait_update": "你的游戏版本高于服务器版本，请等待服务器更新",
     "stop": false,
     "full": "服务器已爆满",
     "max_rooms_count": 0,
@@ -67,18 +67,18 @@
       }
     },
     "tips": {
-      "enabled": true,
+      "enabled": false,
       "get": false,
       "interval": 30000,
       "interval_ingame": 120000
     },
     "dialogues": {
-      "enabled": true,
+      "enabled": false,
       "get": "http://mercury233.me/ygosrv233/dialogues.json"
     },
     "random_duel": {
       "enabled": true,
-      "default_type": "S",
+      "default_type": "T",
       "no_rematch_check": false,
       "record_match_scores": false,
       "post_match_scores": false,
@@ -87,7 +87,7 @@
       "blank_pass_modes": {
         "S": true,
         "M": true,
-        "T": false
+        "T": true
       },
       "ready_time": 20,
       "hang_timeout": 90
