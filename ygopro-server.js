@@ -3526,6 +3526,17 @@
     //log.info("#{msg_name}等待#{room.waiting_for_player.name}")
 
     //log.info 'MSG', msg_name
+    if (msg_name === 'UPDATE_DATA') {
+      log.info(`UPDATE_DATA消息内容: 玩家${client.name} (pos:${client.pos}) 数据长度:${buffer.length} 内容:${buffer.toString('hex')}`);
+      // 解析UPDATE_DATA的具体内容
+      if (buffer.length >= 5) {
+        const player = buffer.readUInt8(1);
+        const location = buffer.readUInt8(2);
+        const sequence = buffer.readUInt8(3);
+        const count = buffer.readUInt8(4);
+        log.info(`UPDATE_DATA详细信息: player=${player} location=${location} sequence=${sequence} count=${count}`);
+      }
+    }
     if (msg_name === 'START') {
       playertype = buffer.readUInt8(1);
       client.is_first = !(playertype & 0xf);
