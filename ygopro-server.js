@@ -3502,10 +3502,57 @@
           return true;
         }
       } else if (msg_name !== 'HINT') {
+        // ⚠️ 兜底短路：在记录消息之前检查GCG Supply
+        if (msg_name === 'UPDATE_DATA' && isGCGSupply(0, 0, buffer)) {
+          // GCG Supply消息不记录到last_game_msg，避免后续RETRY时显示UNKNOWN
+          const player = buffer.readUInt8(1);
+          const pos = normalizeSeat(room, client, player);
+          const payload = buffer.slice(5);
+
+          if (room.dueling_players[pos]) {
+            room.dueling_players[pos].supplyRaw = Buffer.from(payload);
+            log.info(`Player ${pos} supply(raw)=${payload.toString('hex')}`);
+          }
+
+          // 转发给对手
+          const opp = getOpponentSeat(room, pos);
+          if (opp != null && room.dueling_players[opp]?.client) {
+            const fwd = Buffer.alloc(buffer.length);
+            buffer.copy(fwd);
+            ygopro.stoc_send(room.dueling_players[opp].client, 'GAME_MSG', fwd);
+          }
+
+          // ⚠️ 关键：直接return，不记录消息，不进入任何default分支
+          return true;
+        }
         record_last_game_msg();
       }
     // log.info(client.name, client.last_game_msg_title)
     } else if (msg_name !== 'RETRY' && msg_name !== 'HINT') {
+      // ⚠️ 兜底短路：在记录消息之前检查GCG Supply
+      if (msg_name === 'UPDATE_DATA' && isGCGSupply(0, 0, buffer)) {
+        // GCG Supply消息不记录到last_game_msg，避免后续RETRY时显示UNKNOWN
+        // 这里直接处理并返回，不调用record_last_game_msg
+        const player = buffer.readUInt8(1);
+        const pos = normalizeSeat(room, client, player);
+        const payload = buffer.slice(5);
+
+        if (room.dueling_players[pos]) {
+          room.dueling_players[pos].supplyRaw = Buffer.from(payload);
+          log.info(`Player ${pos} supply(raw)=${payload.toString('hex')}`);
+        }
+
+        // 转发给对手
+        const opp = getOpponentSeat(room, pos);
+        if (opp != null && room.dueling_players[opp]?.client) {
+          const fwd = Buffer.alloc(buffer.length);
+          buffer.copy(fwd);
+          ygopro.stoc_send(room.dueling_players[opp].client, 'GAME_MSG', fwd);
+        }
+
+        // ⚠️ 关键：直接return，不记录消息，不进入任何default分支
+        return true;
+      }
       record_last_game_msg();
     }
     // log.info(client.name, client.last_game_msg_title)
@@ -3721,12 +3768,41 @@
      * 判断UPDATE_DATA消息是否为GCG Supply更新
      * @param {number} location - 位置字段
      * @param {number} sequence - 序列字段
+     * @param {Buffer} raw - 原始buffer数据
      * @returns {boolean} 是否为Supply消息
      */
-    var isGCGSupply = function(location, sequence) {
-      // location=2 且 sequence=16 表示GCG的supply（补给/费用）更新
-      return location === 2 && sequence === 16;
-    };
+    function isGCGSupply(location, sequence, raw) {
+      try {
+        if (!raw || raw.length < 5) return false;
+        const loc = raw.readUInt8(2);
+        const seq = raw.readUInt8(3);
+        // location=2 且 sequence=0x10(16) 表示GCG的supply（补给/费用）更新
+        return loc === 2 && seq === 0x10;
+      } catch {
+        return false;
+      }
+    }
+
+    // 位置转换辅助函数
+    function normalizeSeat(room, client, player) {
+      let pos = player;
+      if (!client.is_first) {
+        pos = 1 - pos;
+      }
+      if (pos >= 0 && room.hostinfo.mode === 2) {
+        pos = pos * 2;
+      }
+      return pos;
+    }
+
+    // 获取对手位置
+    function getOpponentSeat(room, pos) {
+      if (room.hostinfo.mode === 2) {
+        return pos === 0 ? 2 : 0;
+      } else {
+        return 1 - pos;
+      }
+    }
 
     if (msg_name === 'SUPPLY_UPDATE' && client.pos === 0) {
       pos = buffer.readUInt8(1);
@@ -3744,55 +3820,6 @@
       }
     }
 
-    // GCG Supply处理 - 处理UPDATE_DATA消息中的Galaxy Card Game supply更新
-    /**
-     * handleUpdateData - 处理UPDATE_DATA消息，兼容GCG Supply
-     */
-    if (msg_name === 'UPDATE_DATA' && client.pos === 0) {
-      if (buffer.length >= 5) {
-        const player = buffer.readUInt8(1);
-        const location = buffer.readUInt8(2);
-        const sequence = buffer.readUInt8(3);
-        const count = buffer.readUInt8(4);
-
-        // 判断是否为GCG Supply更新 - 避免进入default分支
-        if (isGCGSupply(location, sequence)) {
-          // 计算玩家位置
-          let pos = player;
-          if (!client.is_first) {
-            pos = 1 - pos;
-          }
-          if (pos >= 0 && room.hostinfo.mode === 2) {
-            pos = pos * 2;
-          }
-
-          // 获取原始payload数据（黑箱处理，不做数值解析）
-          const payload = buffer.slice(5);
-
-          if (room.dueling_players[pos]) {
-            // 直接存储原始payload到player对象
-            room.dueling_players[pos].supplyRaw = Buffer.from(payload);
-
-            // 打印调试日志（hex格式）
-            log.info(`Player ${pos} supply(raw)=${payload.toString('hex')}`);
-          }
-
-          // 同步逻辑：原样转发给对手
-          const opponentPos = 1 - pos;
-          if (room.dueling_players[opponentPos] && room.dueling_players[opponentPos].client) {
-            // 构建转发的UPDATE_DATA消息（原样转发）
-            const forwardBuffer = Buffer.alloc(buffer.length);
-            buffer.copy(forwardBuffer);
-
-            // 发送给对手，保持数据一致性
-            ygopro.stoc_send(room.dueling_players[opponentPos].client, 'GAME_MSG', forwardBuffer);
-          }
-
-          // 提前return，不进入default分支，避免UNKNOWN/RETRY
-          return true;
-        }
-      }
-    }
 
     //track card count
     //todo: track card count in tag mode
