@@ -2670,10 +2670,10 @@ ygopro.stoc_follow 'GAME_MSG', true, (buffer, info, client, server, datas)->
           ygopro.stoc_send(client, 'GAME_MSG', client.last_hint_msg)
         ygopro.stoc_send(client, 'GAME_MSG', client.last_game_msg)
         return true
-    else
+    else if msg_name != 'HINT'
       record_last_game_msg()
       # log.info(client.name, client.last_game_msg_title)
-  else if msg_name != 'RETRY'
+  else if msg_name != 'RETRY' and msg_name != 'HINT'
     record_last_game_msg()
     # log.info(client.name, client.last_game_msg_title)
 
