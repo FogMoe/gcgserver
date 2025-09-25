@@ -3135,6 +3135,9 @@ ygopro.stoc_follow 'DUEL_START', false, (buffer, info, client, server, datas)->
     for player in room.get_playing_player()
       room.dueling_players[player.pos] = player
       room.scores[player.name_vpass] = 0
+      # Initialize supply system
+      player.supply = 0
+      player.max_supply = 0
       room.player_datas.push key: CLIENT_get_authorize_key(player), name: player.name, pos: player.pos
       if room.random_type == 'T'
         # 双打房不记录匹配过

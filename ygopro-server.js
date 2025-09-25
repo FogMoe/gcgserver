@@ -4177,6 +4177,9 @@
         player = ref[j];
         room.dueling_players[player.pos] = player;
         room.scores[player.name_vpass] = 0;
+        // Initialize supply system
+        player.supply = 0;
+        player.max_supply = 0;
         room.player_datas.push({
           key: CLIENT_get_authorize_key(player),
           name: player.name,
