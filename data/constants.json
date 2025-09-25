@@ -142,6 +142,7 @@
         "95": "UNEQUIP",
         "96": "CARD_TARGET",
         "97": "CANCEL_TARGET",
+        "98": "SUPPLY_UPDATE",
         "100": "PAY_LPCOST",
         "101": "ADD_COUNTER",
         "102": "REMOVE_COUNTER",
