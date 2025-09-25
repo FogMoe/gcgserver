@@ -3479,7 +3479,10 @@
         const respLen = client.last_response_len || 0;
         const respPreview = client.last_response_buf ? client.last_response_buf.toString('hex') : '';
         const msgPreview = client.last_game_msg ? client.last_game_msg.toString('hex') : '';
-        log.warn("MSG_RETRY detected", client.name, client.ip, msg, client.retry_count, retryTitle, retryLen, respLen, respPreview, msgPreview);
+        const promptTitle = client.last_prompt_msg_title || 'UNKNOWN';
+        const promptLen = client.last_prompt_msg ? client.last_prompt_msg.length : 0;
+        const promptPreview = client.last_prompt_msg ? client.last_prompt_msg.toString('hex') : '';
+        log.warn("MSG_RETRY detected", client.name, client.ip, msg, client.retry_count, retryTitle, retryLen, respLen, respPreview, msgPreview, promptTitle, promptLen, promptPreview);
         if (settings.modules.retry_handle.max_retry_count && client.retry_count >= settings.modules.retry_handle.max_retry_count) {
           ygopro.stoc_send_chat_to_room(room, client.name + "${retry_too_much_room_part1}" + settings.modules.retry_handle.max_retry_count + "${retry_too_much_room_part2}", ygopro.constants.COLORS.BABYBLUE);
           ygopro.stoc_send_chat(client, "${retry_too_much_part1}" + settings.modules.retry_handle.max_retry_count + "${retry_too_much_part2}", ygopro.constants.COLORS.RED);
@@ -3514,6 +3517,8 @@
         }
         return true;
       } else {
+        client.last_prompt_msg_title = msg_name;
+        client.last_prompt_msg = Buffer.from(buffer);
         room.waiting_for_player = client;
         room.refreshLastActiveTime();
       }
