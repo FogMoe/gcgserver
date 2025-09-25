@@ -3716,30 +3716,10 @@
         }
       }
     }
-    // GCG Supply解析函数 - 从UPDATE_DATA的payload推算supply值
-    var inferSupplyFromPayload = function(payload) {
-      if (!payload || payload.length === 0) {
-        return 0;
-      }
-
-      // 检查是否全为0（隐藏卡牌ID的情况）
-      const isAllZeros = payload.every(byte => byte === 0);
-      if (isAllZeros) {
-        // 根据payload长度推算供应值，假设每张卡4字节
-        return Math.floor(payload.length / 4);
-      }
-
-      // 如果不全为0，尝试解析实际的卡牌数据
-      let cardCount = 0;
-      for (let i = 0; i < payload.length; i += 4) {
-        if (i + 3 < payload.length) {
-          const cardId = payload.readUInt32LE(i);
-          if (cardId > 0) {
-            cardCount++;
-          }
-        }
-      }
-      return cardCount;
+    // GCG Supply辅助函数 - 判断是否为Galaxy Card Game的supply消息
+    var isGCGSupply = function(location, sequence) {
+      // location=2 且 sequence=16 表示GCG的supply（补给/费用）更新
+      return location === 2 && sequence === 16;
     };
 
     if (msg_name === 'SUPPLY_UPDATE' && client.pos === 0) {
@@ -3758,7 +3738,7 @@
       }
     }
 
-    // GCG Supply解析 - 处理UPDATE_DATA消息中的供应（费用）更新
+    // GCG Supply处理 - 处理UPDATE_DATA消息中的Galaxy Card Game supply更新
     if (msg_name === 'UPDATE_DATA' && client.pos === 0) {
       if (buffer.length >= 5) {
         const player = buffer.readUInt8(1);
@@ -3766,8 +3746,8 @@
         const sequence = buffer.readUInt8(3);
         const count = buffer.readUInt8(4);
 
-        // 判断是否为GCG Supply更新 (location=2 && sequence=16)
-        if (location === 2 && sequence === 16) {
+        // 判断是否为GCG Supply更新
+        if (isGCGSupply(location, sequence)) {
           let pos = player;
           if (!client.is_first) {
             pos = 1 - pos;
@@ -3776,16 +3756,31 @@
             pos = pos * 2;
           }
 
-          // 解析供应值
+          // 获取原始payload数据（不做解析，直接保存）
           const payload = buffer.slice(5);
-          const supply = inferSupplyFromPayload(payload);
 
           if (room.dueling_players[pos]) {
-            room.dueling_players[pos].supply = supply;
-            log.info(`Player ${pos} supply=${supply}`);
+            // 保存原始supply数据到Player对象
+            room.dueling_players[pos].supplyRaw = Buffer.from(payload);
+
+            // 打印调试日志（hex格式）
+            const hexPayload = payload.toString('hex');
+            log.info(`Player ${pos} supply(raw)=${hexPayload}`);
           }
 
-          // 不返回MSG_RETRY，正常处理
+          // 向另一名玩家转发supply消息
+          const opponentPos = 1 - pos;
+          if (room.dueling_players[opponentPos] && room.dueling_players[opponentPos].client) {
+            // 构建转发的UPDATE_DATA消息
+            const forwardBuffer = Buffer.alloc(buffer.length);
+            buffer.copy(forwardBuffer);
+
+            // 发送给对手
+            ygopro.stoc_send(room.dueling_players[opponentPos].client, 'GAME_MSG', forwardBuffer);
+          }
+
+          // 不返回MSG_RETRY，正常处理完成
+          return;
         }
       }
     }
@@ -4249,6 +4244,8 @@
         // Initialize supply system
         player.supply = 0;
         player.max_supply = 0;
+        // GCG Supply - 初始化原始supply数据存储
+        player.supplyRaw = Buffer.alloc(0);
         room.player_datas.push({
           key: CLIENT_get_authorize_key(player),
           name: player.name,
