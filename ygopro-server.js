@@ -3526,17 +3526,6 @@
     //log.info("#{msg_name}等待#{room.waiting_for_player.name}")
 
     //log.info 'MSG', msg_name
-    if (msg_name === 'UPDATE_DATA') {
-      log.info(`UPDATE_DATA消息内容: 玩家${client.name} (pos:${client.pos}) 数据长度:${buffer.length} 内容:${buffer.toString('hex')}`);
-      // 解析UPDATE_DATA的具体内容
-      if (buffer.length >= 5) {
-        const player = buffer.readUInt8(1);
-        const location = buffer.readUInt8(2);
-        const sequence = buffer.readUInt8(3);
-        const count = buffer.readUInt8(4);
-        log.info(`UPDATE_DATA详细信息: player=${player} location=${location} sequence=${sequence} count=${count}`);
-      }
-    }
     if (msg_name === 'START') {
       playertype = buffer.readUInt8(1);
       client.is_first = !(playertype & 0xf);
@@ -3727,6 +3716,32 @@
         }
       }
     }
+    // GCG Supply解析函数 - 从UPDATE_DATA的payload推算supply值
+    var inferSupplyFromPayload = function(payload) {
+      if (!payload || payload.length === 0) {
+        return 0;
+      }
+
+      // 检查是否全为0（隐藏卡牌ID的情况）
+      const isAllZeros = payload.every(byte => byte === 0);
+      if (isAllZeros) {
+        // 根据payload长度推算供应值，假设每张卡4字节
+        return Math.floor(payload.length / 4);
+      }
+
+      // 如果不全为0，尝试解析实际的卡牌数据
+      let cardCount = 0;
+      for (let i = 0; i < payload.length; i += 4) {
+        if (i + 3 < payload.length) {
+          const cardId = payload.readUInt32LE(i);
+          if (cardId > 0) {
+            cardCount++;
+          }
+        }
+      }
+      return cardCount;
+    };
+
     if (msg_name === 'SUPPLY_UPDATE' && client.pos === 0) {
       pos = buffer.readUInt8(1);
       if (!client.is_first) {
@@ -3742,6 +3757,39 @@
         room.dueling_players[pos].max_supply = max_supply;
       }
     }
+
+    // GCG Supply解析 - 处理UPDATE_DATA消息中的供应（费用）更新
+    if (msg_name === 'UPDATE_DATA' && client.pos === 0) {
+      if (buffer.length >= 5) {
+        const player = buffer.readUInt8(1);
+        const location = buffer.readUInt8(2);
+        const sequence = buffer.readUInt8(3);
+        const count = buffer.readUInt8(4);
+
+        // 判断是否为GCG Supply更新 (location=2 && sequence=16)
+        if (location === 2 && sequence === 16) {
+          let pos = player;
+          if (!client.is_first) {
+            pos = 1 - pos;
+          }
+          if (pos >= 0 && room.hostinfo.mode === 2) {
+            pos = pos * 2;
+          }
+
+          // 解析供应值
+          const payload = buffer.slice(5);
+          const supply = inferSupplyFromPayload(payload);
+
+          if (room.dueling_players[pos]) {
+            room.dueling_players[pos].supply = supply;
+            log.info(`Player ${pos} supply=${supply}`);
+          }
+
+          // 不返回MSG_RETRY，正常处理
+        }
+      }
+    }
+
     //track card count
     //todo: track card count in tag mode
     if (msg_name === 'MOVE' && room.hostinfo.mode !== 2) {
