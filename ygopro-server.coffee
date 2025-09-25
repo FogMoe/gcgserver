@@ -2651,7 +2651,8 @@ ygopro.stoc_follow 'GAME_MSG', true, (buffer, info, client, server, datas)->
       retryLen = if client.last_game_msg then client.last_game_msg.length else 0
       respLen = client.last_response_len or 0
       respPreview = if client.last_response_buf then client.last_response_buf.toString('hex') else ''
-      log.warn "MSG_RETRY detected", client.name, client.ip, msg, client.retry_count, retryTitle, retryLen, respLen, respPreview
+      msgPreview = if client.last_game_msg then client.last_game_msg.toString('hex') else ''
+      log.warn "MSG_RETRY detected", client.name, client.ip, msg, client.retry_count, retryTitle, retryLen, respLen, respPreview, msgPreview
       if settings.modules.retry_handle.max_retry_count and client.retry_count >= settings.modules.retry_handle.max_retry_count
         ygopro.stoc_send_chat_to_room(room, client.name + "${retry_too_much_room_part1}" + settings.modules.retry_handle.max_retry_count + "${retry_too_much_room_part2}", ygopro.constants.COLORS.BABYBLUE)
         ygopro.stoc_send_chat(client, "${retry_too_much_part1}" + settings.modules.retry_handle.max_retry_count + "${retry_too_much_part2}", ygopro.constants.COLORS.RED)
