@@ -3717,6 +3717,12 @@
       }
     }
     // GCG Supply辅助函数 - 判断是否为Galaxy Card Game的supply消息
+    /**
+     * 判断UPDATE_DATA消息是否为GCG Supply更新
+     * @param {number} location - 位置字段
+     * @param {number} sequence - 序列字段
+     * @returns {boolean} 是否为Supply消息
+     */
     var isGCGSupply = function(location, sequence) {
       // location=2 且 sequence=16 表示GCG的supply（补给/费用）更新
       return location === 2 && sequence === 16;
@@ -3739,6 +3745,9 @@
     }
 
     // GCG Supply处理 - 处理UPDATE_DATA消息中的Galaxy Card Game supply更新
+    /**
+     * handleUpdateData - 处理UPDATE_DATA消息，兼容GCG Supply
+     */
     if (msg_name === 'UPDATE_DATA' && client.pos === 0) {
       if (buffer.length >= 5) {
         const player = buffer.readUInt8(1);
@@ -3746,8 +3755,9 @@
         const sequence = buffer.readUInt8(3);
         const count = buffer.readUInt8(4);
 
-        // 判断是否为GCG Supply更新
+        // 判断是否为GCG Supply更新 - 避免进入default分支
         if (isGCGSupply(location, sequence)) {
+          // 计算玩家位置
           let pos = player;
           if (!client.is_first) {
             pos = 1 - pos;
@@ -3756,31 +3766,30 @@
             pos = pos * 2;
           }
 
-          // 获取原始payload数据（不做解析，直接保存）
+          // 获取原始payload数据（黑箱处理，不做数值解析）
           const payload = buffer.slice(5);
 
           if (room.dueling_players[pos]) {
-            // 保存原始supply数据到Player对象
+            // 直接存储原始payload到player对象
             room.dueling_players[pos].supplyRaw = Buffer.from(payload);
 
             // 打印调试日志（hex格式）
-            const hexPayload = payload.toString('hex');
-            log.info(`Player ${pos} supply(raw)=${hexPayload}`);
+            log.info(`Player ${pos} supply(raw)=${payload.toString('hex')}`);
           }
 
-          // 向另一名玩家转发supply消息
+          // 同步逻辑：原样转发给对手
           const opponentPos = 1 - pos;
           if (room.dueling_players[opponentPos] && room.dueling_players[opponentPos].client) {
-            // 构建转发的UPDATE_DATA消息
+            // 构建转发的UPDATE_DATA消息（原样转发）
             const forwardBuffer = Buffer.alloc(buffer.length);
             buffer.copy(forwardBuffer);
 
-            // 发送给对手
+            // 发送给对手，保持数据一致性
             ygopro.stoc_send(room.dueling_players[opponentPos].client, 'GAME_MSG', forwardBuffer);
           }
 
-          // 不返回MSG_RETRY，正常处理完成
-          return;
+          // 提前return，不进入default分支，避免UNKNOWN/RETRY
+          return true;
         }
       }
     }
@@ -4245,6 +4254,7 @@
         player.supply = 0;
         player.max_supply = 0;
         // GCG Supply - 初始化原始supply数据存储
+        /** @type {Buffer} player.supplyRaw - 存储原始GCG Supply payload数据 */
         player.supplyRaw = Buffer.alloc(0);
         room.player_datas.push({
           key: CLIENT_get_authorize_key(player),
