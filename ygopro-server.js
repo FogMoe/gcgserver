@@ -3490,6 +3490,13 @@
           return true;
         }
         if (client.last_game_msg) {
+          if (client.last_game_msg_title === 'UPDATE_DATA' || client.last_game_msg_title === 'NEW_PHASE') {
+            if (client.last_hint_msg) {
+              ygopro.stoc_send(client, 'GAME_MSG', client.last_hint_msg);
+            }
+            ygopro.stoc_send(client, 'GAME_MSG', client.last_game_msg);
+            return true;
+          }
           if (settings.modules.retry_handle.max_retry_count) {
             ygopro.stoc_send_chat(client, "${retry_part1}" + client.retry_count + "${retry_part2}" + settings.modules.retry_handle.max_retry_count + "${retry_part3}", ygopro.constants.COLORS.RED);
           } else {
@@ -3503,55 +3510,58 @@
         }
       } else if (msg_name !== 'HINT') {
         // ⚠️ 兜底短路：在记录消息之前检查GCG Supply
-        if (msg_name === 'UPDATE_DATA' && isGCGSupply(0, 0, buffer)) {
-          // GCG Supply消息不记录到last_game_msg，避免后续RETRY时显示UNKNOWN
-          const player = buffer.readUInt8(1);
-          const pos = normalizeSeat(room, client, player);
-          const payload = buffer.slice(5);
-
-          if (room.dueling_players[pos]) {
-            room.dueling_players[pos].supplyRaw = Buffer.from(payload);
-            log.info(`Player ${pos} supply(raw)=${payload.toString('hex')}`);
-          }
-
-          // 转发给对手
-          const opp = getOpponentSeat(room, pos);
-          if (opp != null && room.dueling_players[opp]?.client) {
-            const fwd = Buffer.alloc(buffer.length);
-            buffer.copy(fwd);
-            ygopro.stoc_send(room.dueling_players[opp].client, 'GAME_MSG', fwd);
-          }
-
-          // ⚠️ 关键：直接return，不记录消息，不进入任何default分支
-          return true;
+        switch (msg_name) {
+          case 'UPDATE_DATA':
+            if (isGCGSupply(buffer)) {
+              const player = buffer.readUInt8(1);
+              const pos = normalizeSeat(room, client, player);
+              const payload = buffer.slice(5);
+              if (room.dueling_players[pos]) {
+                room.dueling_players[pos].supplyRaw = Buffer.from(payload);
+                log.info(`Player ${pos} supply(raw)=${payload.toString('hex')}`);
+              }
+              const opp = getOpponentSeat(room, pos);
+              if (opp != null && room.dueling_players[opp]?.client) {
+                const fwd = Buffer.alloc(buffer.length);
+                buffer.copy(fwd);
+                ygopro.stoc_send(room.dueling_players[opp].client, 'GAME_MSG', fwd);
+              }
+              return true;
+            }
+            break;
+          case 'NEW_PHASE':
+            // 新回合广播：不缓存，避免 RETRY 时重复播报
+            client.last_game_msg = null;
+            client.last_game_msg_title = null;
+            return true;
         }
         record_last_game_msg();
       }
     // log.info(client.name, client.last_game_msg_title)
     } else if (msg_name !== 'RETRY' && msg_name !== 'HINT') {
-      // ⚠️ 兜底短路：在记录消息之前检查GCG Supply
-      if (msg_name === 'UPDATE_DATA' && isGCGSupply(0, 0, buffer)) {
-        // GCG Supply消息不记录到last_game_msg，避免后续RETRY时显示UNKNOWN
-        // 这里直接处理并返回，不调用record_last_game_msg
-        const player = buffer.readUInt8(1);
-        const pos = normalizeSeat(room, client, player);
-        const payload = buffer.slice(5);
-
-        if (room.dueling_players[pos]) {
-          room.dueling_players[pos].supplyRaw = Buffer.from(payload);
-          log.info(`Player ${pos} supply(raw)=${payload.toString('hex')}`);
-        }
-
-        // 转发给对手
-        const opp = getOpponentSeat(room, pos);
-        if (opp != null && room.dueling_players[opp]?.client) {
-          const fwd = Buffer.alloc(buffer.length);
-          buffer.copy(fwd);
-          ygopro.stoc_send(room.dueling_players[opp].client, 'GAME_MSG', fwd);
-        }
-
-        // ⚠️ 关键：直接return，不记录消息，不进入任何default分支
-        return true;
+      switch (msg_name) {
+        case 'UPDATE_DATA':
+          if (isGCGSupply(buffer)) {
+            const player = buffer.readUInt8(1);
+            const pos = normalizeSeat(room, client, player);
+            const payload = buffer.slice(5);
+            if (room.dueling_players[pos]) {
+              room.dueling_players[pos].supplyRaw = Buffer.from(payload);
+              log.info(`Player ${pos} supply(raw)=${payload.toString('hex')}`);
+            }
+            const opp = getOpponentSeat(room, pos);
+            if (opp != null && room.dueling_players[opp]?.client) {
+              const fwd = Buffer.alloc(buffer.length);
+              buffer.copy(fwd);
+              ygopro.stoc_send(room.dueling_players[opp].client, 'GAME_MSG', fwd);
+            }
+            return true;
+          }
+          break;
+        case 'NEW_PHASE':
+          client.last_game_msg = null;
+          client.last_game_msg_title = null;
+          return true;
       }
       record_last_game_msg();
     }
@@ -3765,19 +3775,28 @@
     }
     // GCG Supply辅助函数 - 判断是否为Galaxy Card Game的supply消息
     /**
-     * 判断UPDATE_DATA消息是否为GCG Supply更新
-     * @param {number} location - 位置字段
-     * @param {number} sequence - 序列字段
+     * 判断UPDATE_DATA消息是否为Galaxy补给同步：
+     * 位于魔陷区域序号4，并且payload包含0x02000098标识。
      * @param {Buffer} raw - 原始buffer数据
      * @returns {boolean} 是否为Supply消息
      */
-    function isGCGSupply(location, sequence, raw) {
+    function isGCGSupply(raw) {
       try {
-        if (!raw || raw.length < 5) return false;
-        const loc = raw.readUInt8(2);
-        const seq = raw.readUInt8(3);
-        // location=2 且 sequence=0x10(16) 表示GCG的supply（补给/费用）更新
-        return loc === 2 && seq === 0x10;
+        if (!raw || raw.length < 13) {
+          return false;
+        }
+        const location = raw.readUInt8(2);
+        const sequence = raw.readUInt8(3);
+        if (location !== 0x08 || sequence !== 0x04) {
+          return false;
+        }
+        const SIGNATURE = 0x02000098;
+        for (let offset = 5; offset <= raw.length - 4; offset += 4) {
+          if (raw.readUInt32LE(offset) === SIGNATURE) {
+            return true;
+          }
+        }
+        return false;
       } catch {
         return false;
       }
