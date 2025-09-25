@@ -95,7 +95,8 @@
         {"name": "curmsg", "type": "word8Ule"},
         {"name": "type", "type": "word8"},
         {"name": "player", "type": "word8"},
-        {"name": "data", "type": "word32Ule"}
+        {"name": "data", "type": "word32Ule"},
+        {"name": "extra", "type": "word32Ule"}
     ],
     "deck": [
         {"name": "mainc", "type": "unsigned int"},
@@ -112,5 +113,11 @@
         {"name": "mainc_o", "type": "unsigned short"},
         {"name": "sidec_o", "type": "unsigned short"},
         {"name": "extrac_o", "type": "unsigned short"}
+    ],
+    "GameMsg_SupplyUpdate": [
+        {"name": "curmsg", "type": "word8Ule"},
+        {"name": "player", "type": "word8"},
+        {"name": "current", "type": "word32Ule"},
+        {"name": "maximum", "type": "word32Ule"}
     ]
 }
