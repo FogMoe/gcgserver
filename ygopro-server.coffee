@@ -2816,6 +2816,16 @@ ygopro.stoc_follow 'GAME_MSG', true, (buffer, info, client, server, datas)->
       if 0 < room.dueling_players[pos].lp <= 100
         ygopro.stoc_send_chat_to_room(room, "${lp_low_self}", ygopro.constants.COLORS.PINK)
 
+  if msg_name == 'SUPPLY_UPDATE' and client.pos == 0
+    pos = buffer.readUInt8(1)
+    pos = 1 - pos unless client.is_first
+    pos = pos * 2 if pos >= 0 and room.hostinfo.mode == 2
+    current_supply = buffer.readInt32LE(2)
+    max_supply = buffer.readInt32LE(6)
+    if room.dueling_players[pos]
+      room.dueling_players[pos].supply = current_supply
+      room.dueling_players[pos].max_supply = max_supply
+
   #track card count
   #todo: track card count in tag mode
   if msg_name == 'MOVE' and room.hostinfo.mode != 2

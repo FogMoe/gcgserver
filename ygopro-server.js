@@ -3706,6 +3706,21 @@
         }
       }
     }
+    if (msg_name === 'SUPPLY_UPDATE' && client.pos === 0) {
+      pos = buffer.readUInt8(1);
+      if (!client.is_first) {
+        pos = 1 - pos;
+      }
+      if (pos >= 0 && room.hostinfo.mode === 2) {
+        pos = pos * 2;
+      }
+      current_supply = buffer.readInt32LE(2);
+      max_supply = buffer.readInt32LE(6);
+      if (room.dueling_players[pos]) {
+        room.dueling_players[pos].supply = current_supply;
+        room.dueling_players[pos].max_supply = max_supply;
+      }
+    }
     //track card count
     //todo: track card count in tag mode
     if (msg_name === 'MOVE' && room.hostinfo.mode !== 2) {
