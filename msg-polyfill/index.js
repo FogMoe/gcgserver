@@ -14,30 +14,8 @@ const getPolyfillers = (version) => {
     return polyfillers.map(p => p.polyfiller);
 };
 async function polyfillGameMsg(version, msgTitle, buffer) {
-    const polyfillers = getPolyfillers(version);
-    let pbuf = buffer;
-    for (const polyfiller of polyfillers) {
-        const newBuf = await polyfiller.polyfillGameMsg(msgTitle, pbuf);
-        if (newBuf) {
-            pbuf = newBuf;
-        }
-    }
-    if (pbuf === buffer) {
-        return undefined;
-    }
-    else if (pbuf.length <= buffer.length) {
-        pbuf.copy(buffer, 0, 0, pbuf.length);
-        return pbuf.length === buffer.length
-            ? undefined
-            : buffer.slice(0, pbuf.length);
-    }
-    else {
-        return pbuf;
-    }
+    return undefined;
 }
 async function polyfillResponse(version, msgTitle, buffer) {
-    const polyfillers = getPolyfillers(version);
-    for (const polyfiller of polyfillers) {
-        await polyfiller.polyfillResponse(msgTitle, buffer);
-    }
+    return;
 }
