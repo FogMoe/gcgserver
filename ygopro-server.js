@@ -3699,9 +3699,10 @@
         if (room.dueling_players[pos].lp < 0) {
           room.dueling_players[pos].lp = 0;
         }
-        if ((0 < (ref1 = room.dueling_players[pos].lp) && ref1 <= 100)) {
-          ygopro.stoc_send_chat_to_room(room, "${lp_low_opponent}", ygopro.constants.COLORS.PINK);
-        }
+        // 禁用生命值低于100时的提示消息
+        // if ((0 < (ref1 = room.dueling_players[pos].lp) && ref1 <= 100)) {
+        //   ygopro.stoc_send_chat_to_room(room, "${lp_low_opponent}", ygopro.constants.COLORS.PINK);
+        // }
       }
     }
     if (msg_name === 'RECOVER' && client.pos === 0) {
@@ -3744,9 +3745,10 @@
         if (room.dueling_players[pos].lp < 0) {
           room.dueling_players[pos].lp = 0;
         }
-        if ((0 < (ref2 = room.dueling_players[pos].lp) && ref2 <= 100)) {
-          ygopro.stoc_send_chat_to_room(room, "${lp_low_self}", ygopro.constants.COLORS.PINK);
-        }
+        // 禁用生命值低于100时的提示消息
+        // if ((0 < (ref2 = room.dueling_players[pos].lp) && ref2 <= 100)) {
+        //   ygopro.stoc_send_chat_to_room(room, "${lp_low_self}", ygopro.constants.COLORS.PINK);
+        // }
       }
     }
     //track card count
