@@ -971,7 +971,8 @@
   };
 
   ROOM_find_or_create_random = global.ROOM_find_or_create_random = async function(type, player_ip) {
-    var max_player, name, playerbanned, randomDuelBanRecord, result;
+    var getMaxPlayer, getRoomCapacity, max_player, name, playerbanned, randomDuelBanRecord, requested_type, result;
+    requested_type = type;
     if (settings.modules.mysql.enabled) {
       randomDuelBanRecord = (await dataManager.getRandomDuelBan(player_ip));
       if (randomDuelBanRecord) {
@@ -980,7 +981,7 @@
             "error": `\${random_banned_part1}${randomDuelBanRecord.reasons.join('${random_ban_reason_separator}')}\${random_banned_part2}${moment(randomDuelBanRecord.time).fromNow(true)}\${random_banned_part3}`
           };
         }
-        if (randomDuelBanRecord.count > 3 && moment_now.isBefore(randomDuelBanRecord.time) && randomDuelBanRecord.getNeedTip() && type !== 'T') {
+        if (randomDuelBanRecord.count > 3 && moment_now.isBefore(randomDuelBanRecord.time) && randomDuelBanRecord.getNeedTip() && requested_type !== 'T') {
           randomDuelBanRecord.setNeedTip(false);
           await dataManager.updateRandomDuelBan(randomDuelBanRecord);
           return {
@@ -998,17 +999,59 @@
         }
       }
     }
-    max_player = type === 'T' ? 4 : 2;
+    type = requested_type ? requested_type : settings.modules.random_duel.default_type;
+    getMaxPlayer = function(mode) {
+      if (mode === 'T') {
+        return 4;
+      } else {
+        return 2;
+      }
+    };
+    max_player = getMaxPlayer(type);
+    getRoomCapacity = function(room) {
+      var mode, target;
+      mode = typeof (room != null ? room.random_type : void 0) === 'string' && room.random_type.length > 0 ? room.random_type : type;
+      target = getMaxPlayer(mode);
+      if ((room != null ? room.max_player : void 0) != null) {
+        return Math.max(target, room.max_player);
+      } else {
+        return target;
+      }
+    };
     playerbanned = randomDuelBanRecord && randomDuelBanRecord.count > 3 && moment_now < randomDuelBanRecord.time;
     result = _.find(ROOM_all, function(room) {
-      var ref;
-      return room && room.random_type !== '' && !room.disconnector && room.duel_stage === ygopro.constants.DUEL_STAGE.BEGIN && !room.windbot && ((type === '' && (room.random_type === settings.modules.random_duel.default_type || settings.modules.random_duel.blank_pass_modes[room.random_type])) || room.random_type === type) && (0 < (ref = room.get_playing_player().length) && ref < max_player) && (settings.modules.random_duel.no_rematch_check || room.get_host() === null || room.get_host().ip !== ROOM_players_oppentlist[player_ip]) && (playerbanned === room.deprecated || type === 'T');
+      var random_type, ref, room_capacity, type_matched;
+      if (!room) {
+        return false;
+      }
+      random_type = room.random_type;
+      if (!(typeof random_type === 'string' && random_type.length > 0)) {
+        return false;
+      }
+      if (room.disconnector || room.duel_stage !== ygopro.constants.DUEL_STAGE.BEGIN || room.windbot) {
+        return false;
+      }
+      room_capacity = getRoomCapacity(room);
+      type_matched = (requested_type === '' && (random_type === settings.modules.random_duel.default_type || settings.modules.random_duel.blank_pass_modes[random_type])) || random_type === type;
+      if (!type_matched) {
+        return false;
+      }
+      if (!((0 < (ref = room.get_playing_player().length) && ref < room_capacity))) {
+        return false;
+      }
+      if (!(settings.modules.random_duel.no_rematch_check || room.get_host() === null || room.get_host().ip !== ROOM_players_oppentlist[player_ip])) {
+        return false;
+      }
+      if (!(playerbanned === room.deprecated || type === 'T')) {
+        return false;
+      }
+      return true;
     });
     if (result) {
       result.welcome = '${random_duel_enter_room_waiting}';
+      result.max_player = getRoomCapacity(result);
     //log.info 'found room', player_name
     } else if (memory_usage < 90 && !(settings.modules.max_rooms_count && rooms_count >= settings.modules.max_rooms_count)) {
-      type = type ? type : settings.modules.random_duel.default_type;
       name = type + ',RANDOM#' + Math.floor(Math.random() * 100000);
       result = new Room(name);
       result.random_type = type;
@@ -1728,7 +1771,7 @@
         }
         if (rule.match(/(^|，|,)(T|TAG)(，|,|$)/)) {
           this.hostinfo.mode = 2;
-          this.hostinfo.start_lp = 16000;
+          this.hostinfo.start_lp = 40;
         }
         if (rule.match(/(^|，|,)(TCGONLY|TO)(，|,|$)/)) {
           this.hostinfo.rule = 1;
