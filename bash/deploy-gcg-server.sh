@@ -93,7 +93,7 @@ clone_or_pull() {
 install_system_deps() {
   echo "安装系统依赖（需要 sudo）..."
   sudo apt update
-  sudo apt install -y libevent-dev libfreetype6-dev libgl1-mesa-dev libglu1-mesa-dev libxxf86vm-dev libsqlite3-dev libopusfile-dev libvorbis-dev build-essential wget unzip curl git npm
+  sudo apt install -y libevent-dev libfreetype6-dev libgl1-mesa-dev libglu1-mesa-dev libxxf86vm-dev libsqlite3-dev libopusfile-dev libvorbis-dev build-essential wget unzip curl git npm liblua5.4-dev
   if check_dependencies; then
     DEPENDENCIES_OK="true"
   else
@@ -252,7 +252,7 @@ client_ensure_sqlite() {
   SQLITE_ZIP_URL=$(curl -s https://www.sqlite.org/download.html | grep -oE 'https://www.sqlite.org/[0-9]{4}/sqlite-amalgamation-[0-9]+\\.zip' | head -n1 || true)
   if [ -z "$SQLITE_ZIP_URL" ]; then
     echo "警告：无法从官网页面解析版本号，改用最新稳定版本链接。" >&2
-    SQLITE_ZIP_URL="https://www.sqlite.org/current/sqlite-amalgamation.zip"
+    SQLITE_ZIP_URL="https://www.sqlite.org/2025/sqlite-amalgamation-3500400.zip"
   fi
   echo "下载： $SQLITE_ZIP_URL"
   
