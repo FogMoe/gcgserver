@@ -7,4 +7,5 @@ const addPolyfiller = (version: number, polyfiller: typeof BasePolyfiller) => {
   polyfillRegistry.set(version, polyfiller);
 }
 
-addPolyfiller(0x1361, Polyfiller1361);
+// 0x1361 polyfiller disabled
+// addPolyfiller(0x1361, Polyfiller1361);

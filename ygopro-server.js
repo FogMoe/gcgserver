@@ -3498,11 +3498,10 @@
     }
     msg = buffer.readInt8(0);
     msg_name = ygopro.constants.MSG[msg];
-    // msg-polyfill disabled
-    // new_buf = (await msg_polyfill.polyfillGameMsg(client.actual_version, msg_name, buffer));
-    // if (new_buf) {
-    //   buffer = new_buf;
-    // }
+    new_buf = (await msg_polyfill.polyfillGameMsg(client.actual_version, msg_name, buffer));
+    if (new_buf) {
+      buffer = new_buf;
+    }
     record_last_game_msg = function() {
       client.last_game_msg = buffer;
       return client.last_game_msg_title = msg_name;
@@ -4762,8 +4761,7 @@
     if (room && (room.random_type || room.arena)) {
       room.refreshLastActiveTime();
     }
-    // msg-polyfill disabled
-    // await msg_polyfill.polyfillResponse(client.actual_version, client.last_game_msg_title, buffer);
+    await msg_polyfill.polyfillResponse(client.actual_version, client.last_game_msg_title, buffer);
     return false;
   });
 
