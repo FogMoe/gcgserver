@@ -298,6 +298,99 @@ client_move_ygopro() {
   fi
 }
 
+# 14) 更新服务（git pull + pm2 restart）
+update_services() {
+  local SERVER_DIR="$BASE_DIR/gcgserver"
+  local CLIENT_DIR="$BASE_DIR/galaxycardgame"
+  local SCRIPT_URL="https://raw.githubusercontent.com/FogMoe/gcgserver/fix/bash/deploy-gcg-server.sh"
+
+  echo "=== 开始更新服务 ==="
+
+  # 首先更新脚本本身
+  echo "正在更新部署脚本..."
+  local TEMP_SCRIPT="/tmp/deploy-gcg-server-new.sh"
+  if curl -fsSL -o "$TEMP_SCRIPT" "$SCRIPT_URL"; then
+    if [ -f "$TEMP_SCRIPT" ] && [ -s "$TEMP_SCRIPT" ]; then
+      # 检查下载的脚本是否有效
+      if bash -n "$TEMP_SCRIPT" 2>/dev/null; then
+        chmod +x "$TEMP_SCRIPT"
+        # 获取当前脚本路径
+        local CURRENT_SCRIPT="$0"
+        if [ "$CURRENT_SCRIPT" = "bash" ] || [ "$CURRENT_SCRIPT" = "-bash" ]; then
+          CURRENT_SCRIPT="./deploy-gcg-server.sh"
+        fi
+
+        # 备份当前脚本
+        cp "$CURRENT_SCRIPT" "${CURRENT_SCRIPT}.backup"
+
+        # 替换脚本
+        cp "$TEMP_SCRIPT" "$CURRENT_SCRIPT"
+        rm -f "$TEMP_SCRIPT"
+
+        echo "✓ 部署脚本更新完成"
+        echo "提示：脚本已更新，请重新运行脚本以确保使用最新版本"
+        echo "如果更新后出现问题，可以使用备份文件：${CURRENT_SCRIPT}.backup"
+      else
+        echo "✗ 下载的脚本语法检查失败，跳过脚本更新" >&2
+        rm -f "$TEMP_SCRIPT"
+      fi
+    else
+      echo "✗ 脚本下载失败或文件为空，跳过脚本更新" >&2
+    fi
+  else
+    echo "✗ 无法下载脚本更新，跳过脚本更新" >&2
+  fi
+
+  # 检查目录是否存在
+  if [ ! -d "$SERVER_DIR" ]; then
+    echo "错误：服务端目录 $SERVER_DIR 不存在。请先运行菜单项 2 克隆服务端。" >&2
+    return 1
+  fi
+
+  if [ ! -d "$CLIENT_DIR" ]; then
+    echo "错误：客户端目录 $CLIENT_DIR 不存在。请先运行菜单项 6 克隆客户端。" >&2
+    return 1
+  fi
+
+  # 更新服务端代码
+  echo "正在更新服务端代码..."
+  if git -C "$SERVER_DIR" pull; then
+    echo "✓ 服务端代码更新完成"
+  else
+    echo "✗ 服务端代码更新失败" >&2
+    return 1
+  fi
+
+  # 更新客户端代码
+  echo "正在更新客户端代码..."
+  if git -C "$CLIENT_DIR" pull; then
+    echo "✓ 客户端代码更新完成"
+  else
+    echo "✗ 客户端代码更新失败" >&2
+    return 1
+  fi
+
+  # 检查 pm2 是否安装
+  if ! command -v pm2 >/dev/null 2>&1; then
+    echo "警告：未找到 pm2，跳过服务重启。"
+    echo "提示：如果需要重启服务，请手动安装 pm2 或使用其他方式重启服务。"
+    return 0
+  fi
+
+  # 重启 pm2 服务
+  echo "正在重启 pm2 服务..."
+  if pm2 restart all; then
+    echo "✓ pm2 服务重启完成"
+  else
+    echo "✗ pm2 服务重启失败，请检查 pm2 状态" >&2
+    echo "提示：可以运行 'pm2 list' 查看当前服务状态"
+    return 1
+  fi
+
+  echo "=== 服务更新完成 ==="
+  echo "提示：如果有新的依赖变更，可能需要重新运行 npm install（菜单项 3）"
+}
+
 # ----- 组合操作 -----
 full_client_build() {
   client_clone_update
@@ -345,6 +438,7 @@ Client (客户端):
   1) 安装系统依赖（sudo apt install ...）
  12) 全量构建客户端（相当于 6,7,8,9,10,11）
  13) 全量部署（客户端构建 + 服务端准备）
+ 14) 更新服务（git pull + pm2 restart）
   0) 退出
 
 直接运行：输入编号并回车来执行对应步骤（可重复执行）。
@@ -395,6 +489,7 @@ run_item() {
     11) client_move_ygopro ;;
     12) full_client_build ;;
     13) full_deploy_all ;;
+    14) update_services ;;
     0) echo "退出。"; exit 0 ;;
     *) echo "无效选项：$choice" ;;
   esac
