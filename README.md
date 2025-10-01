@@ -4,3 +4,4 @@
 curl -fsSL -o deploy-gcg-server.sh https://raw.githubusercontent.com/FogMoe/gcgserver/fix/bash/deploy-gcg-server.sh && chmod +x deploy-gcg-server.sh && ./deploy-gcg-server.sh
 ```
 
+https://github.com/FogMoe/galaxycardgame
