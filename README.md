@@ -1,1 +1,2 @@
-https://github.com/FogMoe/gcgserver/tree/fix
+# Redirect
+> https://github.com/FogMoe/gcgserver/tree/fix
