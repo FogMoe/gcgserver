@@ -320,7 +320,7 @@
     },
     "http": {
       "port": 7922,
-      "websocket_roomlist": false,
+      "websocket_roomlist": true,
       "public_roomlist": false,
       "show_ip": true,
       "show_info": true,
