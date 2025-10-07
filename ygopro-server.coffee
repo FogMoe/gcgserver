@@ -1344,7 +1344,7 @@ class Room
 
       if (rule.match /(^|，|,)(T|TAG)(，|,|$)/)
         @hostinfo.mode = 2
-        @hostinfo.start_lp = 16000
+        @hostinfo.start_lp = 40
 
       if (rule.match /(^|，|,)(TCGONLY|TO)(，|,|$)/)
         @hostinfo.rule = 1
@@ -2802,8 +2802,9 @@ ygopro.stoc_follow 'GAME_MSG', true, (buffer, info, client, server, datas)->
     if room.dueling_players[pos]
       room.dueling_players[pos].lp -= val
       room.dueling_players[pos].lp = 0 if room.dueling_players[pos].lp < 0
-      if 0 < room.dueling_players[pos].lp <= 100
-        ygopro.stoc_send_chat_to_room(room, "${lp_low_opponent}", ygopro.constants.COLORS.PINK)
+      # 禁用生命值低于100时的提示消息
+      # if 0 < room.dueling_players[pos].lp <= 100
+      #   ygopro.stoc_send_chat_to_room(room, "${lp_low_opponent}", ygopro.constants.COLORS.PINK)
 
   if msg_name == 'RECOVER' and client.pos == 0
     pos = buffer.readUInt8(1)
@@ -2829,8 +2830,9 @@ ygopro.stoc_follow 'GAME_MSG', true, (buffer, info, client, server, datas)->
     if room.dueling_players[pos]
       room.dueling_players[pos].lp -= val
       room.dueling_players[pos].lp = 0 if room.dueling_players[pos].lp < 0
-      if 0 < room.dueling_players[pos].lp <= 100
-        ygopro.stoc_send_chat_to_room(room, "${lp_low_self}", ygopro.constants.COLORS.PINK)
+      # 禁用生命值低于100时的提示消息
+      # if 0 < room.dueling_players[pos].lp <= 100
+      #   ygopro.stoc_send_chat_to_room(room, "${lp_low_self}", ygopro.constants.COLORS.PINK)
 
   #track card count
   #todo: track card count in tag mode
