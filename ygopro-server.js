@@ -299,19 +299,22 @@
   }).call(this);
 
   loadLFList = async function(path) {
-    var date, j, len, list, ref, results;
+    var date, date_match, j, len, list, lists, name, results;
     try {
-      ref = ((await fs.promises.readFile(path, 'utf8'))).match(/!.*/g);
+      lists = ((await fs.promises.readFile(path, 'utf8'))).match(/!.*/g) || [];
       results = [];
-      for (j = 0, len = ref.length; j < len; j++) {
-        list = ref[j];
-        date = list.match(/!([\d\.]+)/);
-        if (!date) {
-          continue;
+      for (j = 0, len = lists.length; j < len; j++) {
+        list = lists[j];
+        name = list.slice(1).trim();
+        date_match = name.match(/([\d\.]+)/);
+        date = moment.invalid();
+        if (date_match) {
+          date = moment(date_match[1], 'YYYY.MM.DD').utcOffset("-08:00");
         }
         results.push(lflists.push({
-          date: moment(list.match(/!([\d\.]+)/)[1], 'YYYY.MM.DD').utcOffset("-08:00"),
-          tcg: list.indexOf('TCG') !== -1
+          date: date,
+          tcg: list.indexOf('TCG') !== -1,
+          name: name
         }));
       }
       return results;

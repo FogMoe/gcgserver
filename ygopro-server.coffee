@@ -240,10 +240,14 @@ class ResolveData
 
 loadLFList = (path) ->
   try
-    for list in (await fs.promises.readFile(path, 'utf8')).match(/!.*/g)
-      date=list.match(/!([\d\.]+)/)
-      continue unless date
-      lflists.push({date: moment(list.match(/!([\d\.]+)/)[1], 'YYYY.MM.DD').utcOffset("-08:00"), tcg: list.indexOf('TCG') != -1})
+    lists = (await fs.promises.readFile(path, 'utf8')).match(/!.*/g) or []
+    for list in lists
+      name = list.slice(1).trim()
+      date_match = name.match(/([\d\.]+)/)
+      date = moment.invalid()
+      if date_match
+        date = moment(date_match[1], 'YYYY.MM.DD').utcOffset("-08:00")
+      lflists.push({date, tcg: list.indexOf('TCG') != -1, name})
   catch
 
 init = () ->
