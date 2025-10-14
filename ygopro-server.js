@@ -299,27 +299,62 @@
   }).call(this);
 
   loadLFList = async function(path) {
-    var date, date_match, j, len, list, lists, name, results;
+    var code, count, current, date, date_match, j, len, line, lines, name, parts, rawLine, rotate, text;
+    rotate = function(value, left, right) {
+      value >>>= 0;
+      left &= 31;
+      right &= 31;
+      return ((value << left) | (value >>> right)) >>> 0;
+    };
     try {
-      lists = ((await fs.promises.readFile(path, 'utf8'))).match(/!.*/g) || [];
-      results = [];
-      for (j = 0, len = lists.length; j < len; j++) {
-        list = lists[j];
-        name = list.slice(1).trim();
+      text = (await fs.promises.readFile(path, 'utf8'));
+    } catch (error1) {
+      return;
+    }
+    current = null;
+    lines = text.split(/\r?\n/);
+    for (j = 0, len = lines.length; j < len; j++) {
+      rawLine = lines[j];
+      line = rawLine.trim();
+      if (!line) {
+        continue;
+      }
+      if (line[0] === '#') {
+        continue;
+      }
+      if (line[0] === '!') {
+        name = line.slice(1).trim();
         date_match = name.match(/([\d\.]+)/);
         date = moment.invalid();
         if (date_match) {
           date = moment(date_match[1], 'YYYY.MM.DD').utcOffset("-08:00");
         }
-        results.push(lflists.push({
+        current = {
+          name: name,
           date: date,
-          tcg: list.indexOf('TCG') !== -1,
-          name: name
-        }));
+          tcg: name.toUpperCase().indexOf('TCG') !== -1,
+          hash: 0x7dfcee6a
+        };
+        lflists.push(current);
+        continue;
       }
-      return results;
-    } catch (error1) {
-
+      if (!current) {
+        continue;
+      }
+      parts = line.split(/\s+/);
+      if (parts.length < 2) {
+        continue;
+      }
+      code = parseInt(parts[0], 10);
+      count = parseInt(parts[1], 10);
+      if (isNaN(code) || isNaN(count)) {
+        continue;
+      }
+      if (count < 0 || count > 2) {
+        continue;
+      }
+      code >>>= 0;
+      current.hash = (current.hash ^ rotate(code, 18, 14) ^ rotate(code, 27 + count, 5 - count)) >>> 0;
     }
   };
 
@@ -2228,10 +2263,15 @@
     }
 
     get_roomlist_hostinfo() { // Just for supporting websocket roomlist in old MyCard client....
-      //ret = _.clone(@hostinfo)
-      //ret.enable_priority = (@hostinfo.duel_rule != 5)
-      //return ret
-      return this.hostinfo;
+      var hash, info;
+      info = JSON.parse(JSON.stringify(this.hostinfo));
+      if (info && typeof info.lflist === "number" && info.lflist >= 0 && info.lflist < lflists.length) {
+        hash = lflists[info.lflist].hash;
+        info.lflist = hash != null ? hash : info.lflist;
+      } else if (info && typeof info.lflist === "number" && info.lflist < 0) {
+        info.lflist = 0;
+      }
+      return info;
     }
 
     async send_replays() {

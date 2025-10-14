@@ -240,15 +240,41 @@ class ResolveData
 
 loadLFList = (path) ->
   try
-    lists = (await fs.promises.readFile(path, 'utf8')).match(/!.*/g) or []
-    for list in lists
-      name = list.slice(1).trim()
+    text = await fs.promises.readFile(path, 'utf8')
+  catch
+    return
+  rotate = (value, left, right) ->
+    value = value >>> 0
+    left &= 31
+    right &= 31
+    ((value << left) | (value >>> right)) >>> 0
+  current = null
+  for rawLine in text.split(/\r?\n/)
+    line = rawLine.trim()
+    continue unless line
+    continue if line[0] == '#'
+    if line[0] == '!'
+      name = line.slice(1).trim()
       date_match = name.match(/([\d\.]+)/)
       date = moment.invalid()
       if date_match
         date = moment(date_match[1], 'YYYY.MM.DD').utcOffset("-08:00")
-      lflists.push({date, tcg: list.indexOf('TCG') != -1, name})
-  catch
+      current = {
+        name
+        date
+        tcg: name.toUpperCase().indexOf('TCG') != -1
+        hash: 0x7dfcee6a
+      }
+      lflists.push(current)
+      continue
+    continue unless current
+    parts = line.split(/\s+/)
+    continue unless parts.length >= 2
+    code = parseInt(parts[0], 10)
+    count = parseInt(parts[1], 10)
+    continue if Number.isNaN(code) or Number.isNaN(count)
+    continue if count < 0 or count > 2
+    current.hash = (current.hash ^ rotate(code, 18, 14) ^ rotate(code, 27 + count, 5 - count)) >>> 0
 
 init = () ->
   log.info('Reading config.')
@@ -1683,10 +1709,13 @@ class Room
     challonge.putScore(@challonge_info.id, matchResult)
 
   get_roomlist_hostinfo: () -> # Just for supporting websocket roomlist in old MyCard client....
-    #ret = _.clone(@hostinfo)
-    #ret.enable_priority = (@hostinfo.duel_rule != 5)
-    #return ret
-    return @hostinfo
+    info = JSON.parse(JSON.stringify(@hostinfo))
+    if info.lflist? and info.lflist >= 0 and info.lflist < lflists.length
+      hash = lflists[info.lflist].hash
+      info.lflist = if hash? then hash else info.lflist
+    else if info.lflist? and info.lflist < 0
+      info.lflist = 0
+    return info
 
   send_replays: () ->
     return false unless settings.modules.replay_delay and @replays.length and @hostinfo.mode == 1
