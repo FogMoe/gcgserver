@@ -1788,7 +1788,7 @@
         }
         if (rule.match(/(^|，|,)(SC|CN|CCG|CHINESE)(，|,|$)/)) {
           this.hostinfo.rule = 2;
-          this.hostinfo.lflist = -1;
+          //this.hostinfo.lflist = -1;
         }
         if ((param = rule.match(/(^|，|,)LP(\d+)(，|,|$)/))) {
           start_lp = parseInt(param[2]);
@@ -3126,9 +3126,9 @@
               }
             };
             //console.log(options)
-            if (options.rule === 2) {
-              options.lflist = -1;
-            }
+            //if (options.rule === 2) {
+            //  options.lflist = -1;
+            //}
             //else if options.rule != 3
             //  options.lflist = _.findIndex lflists, (list)-> ((options.rule == 1) == list.tcg) and list.date.isBefore()
             room_title = info.pass.slice(8).replace(String.fromCharCode(0xFEFF), ' ');
